@@ -1,0 +1,18 @@
+{
+  "name": "lanchonete-soap",
+  "version": "1.0.0",
+  "description": "Web Service SOAP - Lanchonete (Produto, Estoque, Cliente, Pedido, Pagamento) com SQLite",
+  "main": "servidor.js",
+  "scripts": {
+    "servidor": "node servidor.js",
+    "cliente": "node cliente.js",
+    "publico": "node cliente-publico.js",
+    "teste": "node teste-componentes.js && node teste-persistencia.js",
+    "ver-banco": "node ver-banco.js",
+    "resetar-banco": "node resetar-banco.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "*",
+    "soap": "^1.1.5"
+  }
+}

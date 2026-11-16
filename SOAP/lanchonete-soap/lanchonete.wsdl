@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ================================================================
+  CONTRATO DO SERVIÇO: LanchoneteService (WSDL 1.1 / SOAP 1.1 / HTTP)
+  Estilo: document/literal.
+
+  Operações por componente:
+    Produto   -> ListarCardapio, ConsultarProduto
+    Estoque   -> ConsultarEstoque
+    Cliente   -> CadastrarCliente, ConsultarCliente
+    Pedido    -> CriarPedido, ConsultarPedido
+    Pagamento -> ProcessarPagamento
+  ================================================================
+-->
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:xs="http://www.w3.org/2001/XMLSchema"
+             xmlns:tns="http://lanchonete.exemplo.com/"
+             targetNamespace="http://lanchonete.exemplo.com/"
+             name="LanchoneteService">
+
+  <!-- ==============================================================
+       1) <types> - OS DADOS, tipados com XML Schema (XSD).
+       elementFormDefault="qualified": os filhos também pertencem ao
+       namespace do serviço.
+       Convenção: cada operação tem um elemento de entrada <Operacao>
+       e um de saída <OperacaoResponse>.
+       ============================================================== -->
+  <types>
+    <xs:schema targetNamespace="http://lanchonete.exemplo.com/"
+               xmlns:tns="http://lanchonete.exemplo.com/"
+               elementFormDefault="qualified">
+
+      <!-- ===== Tipos reutilizáveis ===== -->
+
+      <!-- Enumeração: só estes 3 valores são aceitos como forma de pagamento. -->
+      <xs:simpleType name="FormaPagamento">
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="DINHEIRO"/>
+          <xs:enumeration value="PIX"/>
+          <xs:enumeration value="CARTAO"/>
+        </xs:restriction>
+      </xs:simpleType>
+
+      <!-- Produto do cardápio (componente Produto). -->
+      <xs:complexType name="Produto">
+        <xs:sequence>
+          <xs:element name="codigo"    type="xs:int"/>
+          <xs:element name="nome"      type="xs:string"/>
+          <xs:element name="categoria" type="xs:string"/>  <!-- LANCHE | BEBIDA | PORCAO -->
+          <xs:element name="preco"     type="xs:decimal"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <!-- Item enviado ao criar um pedido: qual produto e quantas unidades. -->
+      <xs:complexType name="ItemPedidoEntrada">
+        <xs:sequence>
+          <xs:element name="codigoProduto" type="xs:int"/>
+          <xs:element name="quantidade"    type="xs:int"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <!-- Item devolvido no pedido já calculado (com nome e subtotal). -->
+      <xs:complexType name="ItemPedido">
+        <xs:sequence>
+          <xs:element name="codigoProduto" type="xs:int"/>
+          <xs:element name="nome"          type="xs:string"/>
+          <xs:element name="quantidade"    type="xs:int"/>
+          <xs:element name="subtotal"      type="xs:decimal"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <!-- Pedido completo (componente Pedido). maxOccurs="unbounded":
+           um pedido pode ter vários itens. -->
+      <xs:complexType name="Pedido">
+        <xs:sequence>
+          <xs:element name="idPedido" type="xs:int"/>
+          <xs:element name="cliente"  type="xs:string"/>
+          <xs:element name="itens">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="item" type="tns:ItemPedido" minOccurs="1" maxOccurs="unbounded"/>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="total"  type="xs:decimal"/>
+          <xs:element name="status" type="xs:string"/>  <!-- AGUARDANDO_PAGAMENTO | PAGO -->
+        </xs:sequence>
+      </xs:complexType>
+
+      <!-- ===== Componente PRODUTO ===== -->
+
+      <!-- ListarCardapio: não recebe parâmetros. -->
+      <xs:element name="ListarCardapio">
+        <xs:complexType/>
+      </xs:element>
+      <xs:element name="ListarCardapioResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="produto" type="tns:Produto" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+
+      <!-- ConsultarProduto: código -> dados do produto. -->
+      <xs:element name="ConsultarProduto">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="codigo" type="xs:int"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ConsultarProdutoResponse" type="tns:Produto"/>
+
+      <!-- ===== Componente ESTOQUE ===== -->
+
+      <!-- ConsultarEstoque: quantidade e disponibilidade de um produto. -->
+      <xs:element name="ConsultarEstoque">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="codigoProduto" type="xs:int"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ConsultarEstoqueResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="codigoProduto" type="xs:int"/>
+            <xs:element name="nome"          type="xs:string"/>
+            <xs:element name="quantidade"    type="xs:int"/>
+            <xs:element name="disponivel"    type="xs:boolean"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+
+      <!-- ===== Componente CLIENTE ===== -->
+
+      <xs:element name="CadastrarCliente">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="nome"     type="xs:string"/>
+            <xs:element name="telefone" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="CadastrarClienteResponse" type="tns:Cliente"/>
+
+      <xs:element name="ConsultarCliente">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="codigo" type="xs:int"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ConsultarClienteResponse" type="tns:Cliente"/>
+
+      <xs:complexType name="Cliente">
+        <xs:sequence>
+          <xs:element name="codigo"   type="xs:int"/>
+          <xs:element name="nome"     type="xs:string"/>
+          <xs:element name="telefone" type="xs:string"/>
+        </xs:sequence>
+      </xs:complexType>
+
+      <!-- ===== Componente PEDIDO ===== -->
+
+      <!-- CriarPedido: cliente + lista de itens. Valida Cliente, Produto e
+           Estoque e baixa o estoque. -->
+      <xs:element name="CriarPedido">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="codigoCliente" type="xs:int"/>
+            <xs:element name="itens">
+              <xs:complexType>
+                <xs:sequence>
+                  <xs:element name="item" type="tns:ItemPedidoEntrada" minOccurs="1" maxOccurs="unbounded"/>
+                </xs:sequence>
+              </xs:complexType>
+            </xs:element>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="CriarPedidoResponse" type="tns:Pedido"/>
+
+      <xs:element name="ConsultarPedido">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="idPedido" type="xs:int"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ConsultarPedidoResponse" type="tns:Pedido"/>
+
+      <!-- ===== Componente PAGAMENTO ===== -->
+
+      <!-- ProcessarPagamento: depende de um Pedido existente.
+           DINHEIRO aceita valor >= total (gera troco); PIX/CARTAO exigem valor exato. -->
+      <xs:element name="ProcessarPagamento">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="idPedido"        type="xs:int"/>
+            <xs:element name="formaPagamento"  type="tns:FormaPagamento"/>
+            <xs:element name="valor"           type="xs:decimal"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="ProcessarPagamentoResponse">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="idPedido"       type="xs:int"/>
+            <xs:element name="status"         type="xs:string"/>
+            <xs:element name="formaPagamento" type="tns:FormaPagamento"/>
+            <xs:element name="troco"          type="xs:decimal"/>
+            <xs:element name="mensagem"       type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+
+    </xs:schema>
+  </types>
+
+  <!-- ==============================================================
+       2) <message> - AS MENSAGENS TROCADAS.
+       Uma de entrada (Request) e uma de saída (Reply) por operação;
+       cada <part> aponta para um elemento do XSD acima.
+       ============================================================== -->
+  <message name="ListarCardapioRequest">     <part name="parameters" element="tns:ListarCardapio"/> </message>
+  <message name="ListarCardapioReply">       <part name="parameters" element="tns:ListarCardapioResponse"/> </message>
+
+  <message name="ConsultarProdutoRequest">   <part name="parameters" element="tns:ConsultarProduto"/> </message>
+  <message name="ConsultarProdutoReply">     <part name="parameters" element="tns:ConsultarProdutoResponse"/> </message>
+
+  <message name="ConsultarEstoqueRequest">   <part name="parameters" element="tns:ConsultarEstoque"/> </message>
+  <message name="ConsultarEstoqueReply">     <part name="parameters" element="tns:ConsultarEstoqueResponse"/> </message>
+
+  <message name="CadastrarClienteRequest">   <part name="parameters" element="tns:CadastrarCliente"/> </message>
+  <message name="CadastrarClienteReply">     <part name="parameters" element="tns:CadastrarClienteResponse"/> </message>
+
+  <message name="ConsultarClienteRequest">   <part name="parameters" element="tns:ConsultarCliente"/> </message>
+  <message name="ConsultarClienteReply">     <part name="parameters" element="tns:ConsultarClienteResponse"/> </message>
+
+  <message name="CriarPedidoRequest">        <part name="parameters" element="tns:CriarPedido"/> </message>
+  <message name="CriarPedidoReply">          <part name="parameters" element="tns:CriarPedidoResponse"/> </message>
+
+  <message name="ConsultarPedidoRequest">    <part name="parameters" element="tns:ConsultarPedido"/> </message>
+  <message name="ConsultarPedidoReply">      <part name="parameters" element="tns:ConsultarPedidoResponse"/> </message>
+
+  <message name="ProcessarPagamentoRequest"> <part name="parameters" element="tns:ProcessarPagamento"/> </message>
+  <message name="ProcessarPagamentoReply">   <part name="parameters" element="tns:ProcessarPagamentoResponse"/> </message>
+
+  <!-- ==============================================================
+       3) <portType> - O "O QUE" o serviço faz (a interface).
+       Liga cada operação à sua mensagem de entrada e de saída.
+       Não diz nada sobre protocolo nem endereço.
+       ============================================================== -->
+  <portType name="LanchonetePortType">
+    <operation name="ListarCardapio">
+      <input message="tns:ListarCardapioRequest"/>
+      <output message="tns:ListarCardapioReply"/>
+    </operation>
+    <operation name="ConsultarProduto">
+      <input message="tns:ConsultarProdutoRequest"/>
+      <output message="tns:ConsultarProdutoReply"/>
+    </operation>
+    <operation name="ConsultarEstoque">
+      <input message="tns:ConsultarEstoqueRequest"/>
+      <output message="tns:ConsultarEstoqueReply"/>
+    </operation>
+    <operation name="CadastrarCliente">
+      <input message="tns:CadastrarClienteRequest"/>
+      <output message="tns:CadastrarClienteReply"/>
+    </operation>
+    <operation name="ConsultarCliente">
+      <input message="tns:ConsultarClienteRequest"/>
+      <output message="tns:ConsultarClienteReply"/>
+    </operation>
+    <operation name="CriarPedido">
+      <input message="tns:CriarPedidoRequest"/>
+      <output message="tns:CriarPedidoReply"/>
+    </operation>
+    <operation name="ConsultarPedido">
+      <input message="tns:ConsultarPedidoRequest"/>
+      <output message="tns:ConsultarPedidoReply"/>
+    </operation>
+    <operation name="ProcessarPagamento">
+      <input message="tns:ProcessarPagamentoRequest"/>
+      <output message="tns:ProcessarPagamentoReply"/>
+    </operation>
+  </portType>
+
+  <!-- ==============================================================
+       4) <binding> - O "COMO" as mensagens trafegam.
+       style="document" + use="literal": o Body leva o XML exatamente
+       como definido no XSD. transport: SOAP sobre HTTP (POST).
+       soapAction: vai no cabeçalho HTTP SOAPAction e identifica a operação.
+       ============================================================== -->
+  <binding name="LanchoneteBinding" type="tns:LanchonetePortType">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+    <operation name="ListarCardapio">
+      <soap:operation soapAction="http://lanchonete.exemplo.com/ListarCardapio"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+    <operation name="ConsultarProduto">
+      <soap:operation soapAction="http://lanchonete.exemplo.com/ConsultarProduto"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+    <operation name="ConsultarEstoque">
+      <soap:operation soapAction="http://lanchonete.exemplo.com/ConsultarEstoque"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+    <operation name="CadastrarCliente">
+      <soap:operation soapAction="http://lanchonete.exemplo.com/CadastrarCliente"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+    <operation name="ConsultarCliente">
+      <soap:operation soapAction="http://lanchonete.exemplo.com/ConsultarCliente"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+    <operation name="CriarPedido">
+      <soap:operation soapAction="http://lanchonete.exemplo.com/CriarPedido"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+    <operation name="ConsultarPedido">
+      <soap:operation soapAction="http://lanchonete.exemplo.com/ConsultarPedido"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+    <operation name="ProcessarPagamento">
+      <soap:operation soapAction="http://lanchonete.exemplo.com/ProcessarPagamento"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+  </binding>
+
+  <!-- ==============================================================
+       5) <service>/<port> - O "ONDE" (endpoint).
+       Os nomes LanchoneteService -> LanchonetePort precisam ser idênticos
+       aos do objeto `service` no servidor.js. O soap:address é a URL final.
+       ============================================================== -->
+  <service name="LanchoneteService">
+    <port name="LanchonetePort" binding="tns:LanchoneteBinding">
+      <soap:address location="http://localhost:8000/lanchonete"/>
+    </port>
+  </service>
+
+</definitions>
